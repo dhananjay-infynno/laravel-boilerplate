@@ -31,4 +31,8 @@ return [
         ],
     ],
 
+    'discord' => [
+        'exceptions' => env('DISCORD_EXCEPTION_ENABLED', false),
+    ],
+
 ];
