@@ -15,7 +15,6 @@ use App\Exceptions\CustomException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use App\Http\Resources\User\Resource as UserResource;
 
@@ -40,8 +39,9 @@ class AuthService
         $user->assignRole(config('site.roles.user'));
 
         try {
-            Mail::to($user->email)->send(new WelcomeUser($user));
-        } catch (\Exception $e) {
+            $mailService = resolve(MailService::class);
+            $mailService->sendNow($user->email, new WelcomeUser($user));
+        } catch (\Throwable $e) {
             Log::info('Welcome User mail failed.' . $e->getMessage());
         }
 
@@ -97,8 +97,9 @@ class AuthService
         ]);
 
         try {
-            Mail::to($user->email)->send(new ForgetPasswordOtp($user, $otp));
-        } catch (\Exception $e) {
+            $mailService = resolve(MailService::class);
+            $mailService->sendNow($user->email, new ForgetPasswordOtp($user, $otp));
+        } catch (\Throwable $e) {
             Log::info('Forget Password mail failed.' . $e->getMessage());
         }
 
