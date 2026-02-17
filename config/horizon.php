@@ -85,6 +85,7 @@ return [
 
     'waits' => [
         'redis:default' => 60,
+        'redis:mail' => 60,
     ],
 
     /*
@@ -180,7 +181,23 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        // Dedicated supervisor for mail queue (highest priority)
+        'supervisor-mail' => [
+            'connection' => 'redis',
+            'queue' => ['mail'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
+
+        // General purpose supervisor for other queues
+        'supervisor-default' => [
             'connection' => 'redis',
             'queue' => ['default'],
             'balance' => 'auto',
@@ -197,28 +214,49 @@ return [
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
+            // Mail supervisor: prioritize "mail" queue, more processes
+            'supervisor-mail' => [
+                'connection' => 'redis',
+                'queue' => ['mail'],
+                'balance' => 'simple',
+                'processes' => 10,
+                'tries' => 3,
+                'nice' => 0,
+            ],
+            // Default supervisor: handles other / fallback queues
+            'supervisor-default' => [
                 'connection' => 'redis',
                 'queue' => ['default'],
                 'balance' => 'simple',
-                'processes' => 10,
+                'processes' => 5,
                 'tries' => 3,
                 'nice' => 0,
             ],
         ],
         'development' => [
-            'supervisor-1' => [
+            'supervisor-mail' => [
+                'connection' => 'redis',
+                'queue' => ['mail'],
+                'balance' => 'simple',
+                'processes' => 5,
+                'tries' => 3,
+                'nice' => 0,
+            ],
+            'supervisor-default' => [
                 'connection' => 'redis',
                 'queue' => ['default'],
                 'balance' => 'simple',
-                'processes' => 10,
+                'processes' => 3,
                 'tries' => 3,
                 'nice' => 0,
             ],
         ],
         'local' => [
-            'supervisor-1' => [
-                'maxProcesses' => 3,
+            'supervisor-mail' => [
+                'maxProcesses' => 2,
+            ],
+            'supervisor-default' => [
+                'maxProcesses' => 1,
             ],
         ],
     ],
