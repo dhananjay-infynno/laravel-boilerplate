@@ -5,6 +5,7 @@ use App\Exceptions\CustomException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
 use App\Http\Middleware\MarkNotificationsAsRead;
+use App\Services\DiscordService;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -42,6 +43,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        DiscordService::sendToDiscord($exceptions);
+
         $exceptions->render(function (Exception $e, $request) {
             if ($request->is('api/*') && $e instanceof NotFoundHttpException && $e->getPrevious() instanceof ModelNotFoundException) {
                 $modelName = Str::headline(class_basename($e->getPrevious()->getModel()));
