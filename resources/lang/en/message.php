@@ -1,6 +1,9 @@
 <?php
 
 return [
+    // Default envelope message when a controller does not supply one.
+    'success' => 'Success.',
+
     'register_success' => 'Registration successful! Welcome aboard!',
     'login_success' => 'Login successful! Welcome back!',
     'user_profile_update' => 'Your profile updated successfully',
