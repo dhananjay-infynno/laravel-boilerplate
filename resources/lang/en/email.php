@@ -2,6 +2,10 @@
 
 return [
     'hello' => 'Hello',
+    // Personalised greeting used by the billing notifications. Falls back
+    // gracefully: a user with no name renders "Hello there,".
+    'greeting' => 'Hello :name,',
+    'there' => 'there',
     'regards' => 'Best Regards,',
     'welcome_user' => [
         'subject' => 'Welcome to :app_name',

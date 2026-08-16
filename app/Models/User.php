@@ -74,6 +74,14 @@ class User extends Authenticatable implements HasLocalePreference, OAuthenticata
         'referred_by_user_id',
         'is_suspended',
         'suspended_reason',
+        // Billing identity. Snapshot onto the invoice at issue time, so editing
+        // these never rewrites a document already filed.
+        'billing_name',
+        'billing_address',
+        'billing_city',
+        'billing_postal_code',
+        'state_code',
+        'gstin',
     ];
 
     protected $hidden = [

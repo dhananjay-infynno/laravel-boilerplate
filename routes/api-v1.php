@@ -15,7 +15,9 @@ use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\SettingController;
 use App\Http\Controllers\Api\V1\SignedUrlController;
+use App\Http\Controllers\Api\V1\SubscriptionController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\WebhookController;
 use App\Http\Middleware\MarkNotificationsAsRead;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +44,27 @@ Route::controller(AuthController::class)->group(function (): void {
 Route::apiResource('languages', LanguageController::class)->only(['index', 'show']);
 Route::get('countries', CountryController::class);
 Route::post('generate-signed-url', SignedUrlController::class);
+
+/*
+ * Plans are public. The paywall renders before the user has decided anything,
+ * and pricing is on the marketing site regardless.
+ */
+Route::get('plans', [SubscriptionController::class, 'plans'])->name('plans.index');
+
+/*
+ * Gateway webhook.
+ *
+ * NO auth middleware, and that is correct: the HMAC signature IS the
+ * authentication. It is also deliberately outside `single.session` and
+ * `can.write` — a past_due user's renewal webhook must be processed precisely
+ * BECAUSE they cannot write.
+ *
+ * Throttle is high and exists only as a flood guard. Razorpay retries with
+ * backoff, so a real burst is small; a 429 here would make it retry forever.
+ */
+Route::post('webhooks/razorpay', [WebhookController::class, 'razorpay'])
+    ->middleware('throttle:300,1')
+    ->name('webhooks.razorpay');
 
 /*
 |--------------------------------------------------------------------------
@@ -179,4 +202,46 @@ Route::middleware(['auth:api', 'single.session'])->group(function (): void {
 
     // Required by Google Play before the app can ship.
     Route::delete('me', [AccountDeletionController::class, 'destroy'])->name('me.destroy');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Billing
+|--------------------------------------------------------------------------
+|
+| Authenticated but NOT behind `can.write`, and that is the whole point: an
+| expired user has to be able to reach checkout. Putting the way out of the
+| paywall behind the paywall is a dead end nobody notices until a customer
+| emails about it.
+|
+| `single.session` is also skipped. Checkout frequently bounces through a bank
+| app or a UPI app and comes back, and on some devices that is enough to look
+| like a new session — killing the user's token mid-payment would be the worst
+| possible moment to do it.
+*/
+Route::middleware(['auth:api'])->prefix('billing')->name('billing.')->group(function (): void {
+    Route::get('subscription', [SubscriptionController::class, 'current'])->name('subscription');
+
+    // 10/min: each call creates a real subscription object at the gateway, so
+    // an unthrottled loop pollutes the Razorpay dashboard with dead records.
+    Route::post('checkout', [SubscriptionController::class, 'checkout'])
+        ->middleware('throttle:10,1')
+        ->name('checkout');
+
+    // Verifies a signature only. Grants nothing — see the controller.
+    Route::post('verify', [SubscriptionController::class, 'verify'])
+        ->middleware('throttle:20,1')
+        ->name('verify');
+
+    Route::post('change-plan', [SubscriptionController::class, 'changePlan'])
+        ->middleware('throttle:5,1')
+        ->name('change-plan');
+
+    Route::post('cancel', [SubscriptionController::class, 'cancel'])->name('cancel');
+    Route::post('resume', [SubscriptionController::class, 'resume'])->name('resume');
+
+    Route::get('payments', [SubscriptionController::class, 'payments'])->name('payments');
+    Route::get('invoices', [SubscriptionController::class, 'invoices'])->name('invoices');
+    Route::get('invoices/{invoice}/download', [SubscriptionController::class, 'downloadInvoice'])
+        ->name('invoices.download');
 });
