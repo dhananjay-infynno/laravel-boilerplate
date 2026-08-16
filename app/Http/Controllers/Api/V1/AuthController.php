@@ -1,19 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api\V1;
 
-use App\Traits\ApiResponser;
-use Illuminate\Http\Request;
-use App\Services\AuthService;
-use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
-use Dedoc\Scramble\Attributes\Group;
-use App\Http\Requests\Auth\VerifyOtp;
+use App\Http\Requests\Auth\ForgetPassword as ForgetPasswordRequest;
 use App\Http\Requests\Auth\Login as LoginRequest;
-use App\Http\Resources\User\Resource as UserResource;
 use App\Http\Requests\Auth\Register as RegisterRequest;
 use App\Http\Requests\Auth\ResetPassword as ResetPasswordRequest;
-use App\Http\Requests\Auth\ForgetPassword as ForgetPasswordRequest;
+use App\Http\Requests\Auth\VerifyOtp;
+use App\Services\AuthService;
+use App\Traits\ApiResponser;
+use Dedoc\Scramble\Attributes\Group;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * @tags Auth
@@ -23,92 +24,135 @@ class AuthController extends Controller
 {
     use ApiResponser;
 
-    private AuthService $authService;
-
-    public function __construct()
-    {
-        $this->authService = new AuthService;
-    }
+    /**
+     * Constructor injection, not `new AuthService`.
+     *
+     * The old form defeated the container entirely — the service could not be
+     * given a test double, and its own dependencies had to be instantiated by
+     * hand inside it.
+     */
+    public function __construct(
+        private readonly AuthService $authService,
+    ) {}
 
     /**
      * Register.
      *
-     * @unauthenticated
+     * Sends a verification OTP. The 30-day trial does NOT start here — it
+     * starts on verification.
      *
-     * @response array{message: string, data: UserResource, token: string}
+     * @unauthenticated
      */
     public function register(RegisterRequest $request): JsonResponse
     {
         $data = $this->authService->register($request->validated());
 
-        return $this->success($data, 200);
+        return $this->success($data, (string) __('message.register_success'), 201);
     }
 
     /**
-     * Verify reset OTP.
+     * Verify email.
+     *
+     * Verifies the OTP, starts the trial, and signs the user in.
      *
      * @unauthenticated
-     *
-     * @response array{message: string, token: string}
      */
-    public function forgotPasswordOTPVerify(VerifyOtp $request): JsonResponse
+    public function verifyEmail(VerifyOtp $request): JsonResponse
     {
-        $data = $this->authService->forgotPasswordOTPVerify($request->validated());
+        $data = $this->authService->verifyEmail($request->validated());
 
-        return $this->success($data);
+        return $this->success($data, (string) __('message.email_verified_successfully'));
     }
 
     /**
-     * Login.
+     * Resend an OTP.
+     *
+     * Always reports success — confirming whether an address is registered
+     * would make this an account enumeration oracle.
      *
      * @unauthenticated
+     */
+    public function resendOtp(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'purpose' => ['nullable', 'in:email_verification,forgot_password'],
+        ]);
+
+        $this->authService->resendOtp($request->all());
+
+        return $this->success(null, (string) __('message.otp_sent'));
+    }
+
+    /**
+     * Log in.
      *
-     * @response array{message: string, data: UserResource, token: string}
+     * Revokes every other session — one live device per account.
+     *
+     * @unauthenticated
      */
     public function login(LoginRequest $request): JsonResponse
     {
         $data = $this->authService->login($request->validated());
 
-        return $this->success($data, 200);
+        return $this->success($data, (string) __('message.login_success'));
     }
 
     /**
-     * Forgot password.
+     * Verify a password-reset OTP.
      *
      * @unauthenticated
+     */
+    public function forgotPasswordOTPVerify(VerifyOtp $request): JsonResponse
+    {
+        $data = $this->authService->forgotPasswordOTPVerify($request->validated());
+
+        return $this->success($data, (string) __('message.otp_verified_successfully'));
+    }
+
+    /**
+     * Request a password reset.
      *
-     * @response array{message: string}
+     * @unauthenticated
      */
     public function forgotPassword(ForgetPasswordRequest $request): JsonResponse
     {
-        $data = $this->authService->forgotPassword($request->validated());
+        $this->authService->forgotPassword($request->validated());
 
-        return $this->success($data, 200);
+        return $this->success(null, (string) __('message.forget_password_email_success'));
     }
 
     /**
-     * Reset password.
+     * Reset the password.
+     *
+     * Also revokes every session — a reset must invalidate all devices.
      *
      * @unauthenticated
-     *
-     * @response array{message: string}
      */
     public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
-        $data = $this->authService->resetPassword($request->validated());
+        $this->authService->resetPassword($request->validated());
 
-        return $this->success($data, 200);
+        return $this->success(null, (string) __('message.password_change_success'));
     }
 
     /**
-     * Logout.
-     *
-     * @response array{message: string}
+     * Log out of this device.
      */
     public function logout(Request $request): JsonResponse
     {
-        $data = $this->authService->logout($request->all());
+        $this->authService->logout($request->all());
 
-        return $this->success($data, 200);
+        return $this->success(null, (string) __('message.logout_success'));
+    }
+
+    /**
+     * Log out of every device.
+     */
+    public function logoutAll(Request $request): JsonResponse
+    {
+        $this->authService->logoutAll($request->user());
+
+        return $this->success(null, (string) __('message.logout_success'));
     }
 }

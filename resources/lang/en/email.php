@@ -16,6 +16,12 @@ return [
         'line2' => 'Your OTP is :otp. Please note that it is valid for the next :valid_minute minutes.',
         'footer' => 'If you have any questions, please contact our support team.',
     ],
+    'email_verification' => [
+        'subject' => 'Verify your email address',
+        'line1' => 'Thanks for signing up. Enter the code below in the app to verify your email address and start your 30-day free trial.',
+        'line2' => 'Your verification code is :otp. It is valid for the next :valid_minute minutes.',
+        'footer' => 'If you did not create an account, you can safely ignore this email.',
+    ],
     'app' => [
         'name' => config('app.name'),
     ],

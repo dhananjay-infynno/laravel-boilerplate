@@ -192,6 +192,9 @@ return [
     'custom_messages' => [
         'password_difference' => 'The new password must be different from your current password.',
         'current_password' => 'The current password is incorrect.',
+        'use_external_transfer_endpoint' => 'External transfers must be created through the external-transfers endpoint.',
+        'pin_format' => 'The app lock code must be 4 or 6 digits.',
+        'weak_pin' => 'Choose a less predictable code — avoid repeated digits and simple sequences.',
     ],
 
 ];

@@ -13,6 +13,10 @@ return [
     'forget_password_email_success' => 'Forgot Password OTP has been sent sent your email address.',
     'otp_verified_successfully' => 'OTP verified successfully. You can now proceed with password reset.',
     'logout_success' => 'Logout successfully.',
+    'email_verified_successfully' => 'Email verified. Your 30-day free trial has started.',
+    // Deliberately non-committal: the endpoint must not confirm whether the
+    // address is registered.
+    'otp_sent' => 'If that address is registered, a code has been sent to it.',
     'otp_expired' => 'Otp expired.',
     'invalid_otp' => 'Invalid OTP. Please try again.',
     'onesignal_data_success' => 'OneSignal player ID stored successfully.',
